@@ -28,102 +28,73 @@
 package com.ferg.awfulapp;
 
 
-import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
-import android.database.ContentObserver;
-import android.database.Cursor;
-import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.Bundle;
-import android.os.Handler;
+import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
-import android.support.v4.app.LoaderManager;
-import android.support.v4.content.CursorLoader;
-import android.support.v4.content.Loader;
+import android.support.v7.widget.LinearLayoutManager;
+import android.support.v7.widget.RecyclerView;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.ViewGroup;
-import android.widget.CursorTreeAdapter;
-import android.widget.ExpandableListView;
 import android.widget.ImageButton;
-import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.Toast;
 
-import com.android.volley.VolleyError;
 import com.ferg.awfulapp.constants.Constants;
-import com.ferg.awfulapp.network.NetworkUtils;
+import com.ferg.awfulapp.forums.Forum;
+import com.ferg.awfulapp.forums.ForumListAdapter;
+import com.ferg.awfulapp.forums.ForumRepository;
 import com.ferg.awfulapp.preferences.AwfulPreferences;
-import com.ferg.awfulapp.provider.AwfulProvider;
 import com.ferg.awfulapp.provider.ColorProvider;
-import com.ferg.awfulapp.task.AwfulRequest;
-import com.ferg.awfulapp.task.IndexIconRequest;
-import com.ferg.awfulapp.task.IndexRequest;
-import com.ferg.awfulapp.thread.AwfulForum;
 import com.orangegangsters.github.swipyrefreshlayout.library.SwipyRefreshLayout;
 import com.orangegangsters.github.swipyrefreshlayout.library.SwipyRefreshLayoutDirection;
 
 import java.util.Date;
+import java.util.List;
 
-public class ForumsIndexFragment extends AwfulFragment implements SwipyRefreshLayout.OnRefreshListener {
+import static android.view.View.VISIBLE;
+
+public class ForumsIndexFragment extends AwfulFragment
+		implements SwipyRefreshLayout.OnRefreshListener, ForumRepository.ForumsUpdateListener, ForumListAdapter.EventListener {
 
 
-	private static final int[] EMPTY_STATE_SET = {};
-	private static final int[] GROUP_EXPANDED_STATE_SET =
-			{android.R.attr.state_expanded};
-	private static final int[][] GROUP_STATE_SETS = {
-			EMPTY_STATE_SET, // 0
-			GROUP_EXPANDED_STATE_SET // 1
-	};
+	private static final String TAG = "ForumsIndexFragment";
 
-    private int selectedForum = 0;
-    
-    private ExpandableListView mForumIndex;
-    
-    private AwfulTreeListAdapter mTreeAdapter;
-    
 	private View mProbationBar;
 	private TextView mProbationMessage;
 	private ImageButton mProbationButton;
 
-    private ForumContentObserver forumObserver;
-	
-    private ForumContentsCallback mForumLoaderCallback = new ForumContentsCallback();
+	private RecyclerView forumRecyclerView;
+	private ForumListAdapter forumListAdapter;
+	private ForumRepository forumRepo;
+	private List<Forum> forumList;
 
-    public ForumsIndexFragment() {
-        TAG = "ForumsIndex";
-    }
 
     @Override
     public void onCreate(Bundle savedInstanceState){
-        super.onCreate(savedInstanceState); if(DEBUG) Log.e(TAG, "onCreate"+(savedInstanceState != null?" + saveState":""));
+        super.onCreate(savedInstanceState); if(DEBUG) Log.d(TAG, "onCreate" + (savedInstanceState != null ? " + saveState" : ""));
         setHasOptionsMenu(true);
         setRetainInstance(false);
-        forumObserver = new ForumContentObserver(mHandler);
-    }
-
-    @Override
-    public void onAttach(Activity aActivity) {
-        super.onAttach(aActivity); if(DEBUG) Log.e(TAG, "onAttach");
     }
 
     @Override
     public View onCreateView(LayoutInflater aInflater, ViewGroup aContainer, Bundle aSavedState) {
-        if(DEBUG) Log.e(TAG, "onCreateView");
+        if(DEBUG) Log.d(TAG, "onCreateView");
         View result = inflateView(R.layout.forum_index, aContainer, aInflater);
-        
-        mForumIndex = (ExpandableListView) result.findViewById(R.id.index_view);
-        mForumIndex.setBackgroundColor(ColorProvider.getBackgroundColor());
-        mForumIndex.setCacheColorHint(ColorProvider.getBackgroundColor());
+
+		forumRecyclerView = (RecyclerView) result.findViewById(R.id.index_view);
 
 		mProbationBar = result.findViewById(R.id.probationbar);
 		mProbationMessage = (TextView) result.findViewById(R.id.probation_message);
 		mProbationButton  = (ImageButton) result.findViewById(R.id.go_to_LC);
-
 		updateProbationBar();
+
         return result;
     }
 
@@ -131,41 +102,49 @@ public class ForumsIndexFragment extends AwfulFragment implements SwipyRefreshLa
     public void onViewCreated(View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-
         mSRL = (SwipyRefreshLayout) view.findViewById(R.id.index_swipe);
         mSRL.setOnRefreshListener(this);
-		mSRL.setColorSchemeResources(ColorProvider.getSRLProgressColor());
-		mSRL.setProgressBackgroundColor(ColorProvider.getSRLBackgroundColor());
+		updateViewColours();
     }
 
     @Override
     public void onActivityCreated(Bundle aSavedState) {
-        super.onActivityCreated(aSavedState);
-        mTreeAdapter = new AwfulTreeListAdapter(null, getActivity());
-		mForumIndex.setAdapter(mTreeAdapter);
-        syncForums();
-    }
-    
+		super.onActivityCreated(aSavedState);
+		Context context = getActivity();
+
+		forumRepo = ForumRepository.getInstance(getContext());
+		forumList = forumRepo.getFlatForumList();
+		forumListAdapter = ForumListAdapter.getInstance(context, forumList, this);
+		forumRecyclerView.setAdapter(forumListAdapter);
+		forumRecyclerView.setLayoutManager(new LinearLayoutManager(context));
+	}
+
     @Override
     public void onResume() {
         super.onResume();
-		restartLoader(Constants.FORUM_INDEX_LOADER_ID, null, mForumLoaderCallback);
-        getActivity().getContentResolver().registerContentObserver(AwfulForum.CONTENT_URI, true, forumObserver);
+		forumRepo.registerListener(this);
+		refreshForumList();
 		updateProbationBar();
     }
 
 	@Override
-	public void onPageVisible() {
-		if(DEBUG) Log.e(TAG, "onPageVisible");
-//		if(mP2RAttacher != null){
-//			mP2RAttacher.setPullFromBottom(false);
-//		}
+	public void onPause() {
+		forumRepo.unregisterListener(this);
+		super.onPause();
 	}
-	
+
+	// TODO: do these need to be here?
+
+	@Override
+	public void onPageVisible() {
+		if(DEBUG) Log.d(TAG, "onPageVisible");
+	}
+
 	@Override
 	public void onPageHidden() {
-		if(DEBUG) Log.e(TAG, "onPageHidden");
+		if(DEBUG) Log.d(TAG, "onPageHidden");
 	}
+
 
     @Override
     public String getInternalId() {
@@ -174,226 +153,91 @@ public class ForumsIndexFragment extends AwfulFragment implements SwipyRefreshLa
 
 
 	@Override
-	protected void cancelNetworkRequests() {
-		super.cancelNetworkRequests();
-		NetworkUtils.cancelRequests(IndexRequest.REQUEST_TAG);
-	}
-
-	@Override
-    public void onPause() {
-        super.onPause();
-        getActivity().getContentResolver().unregisterContentObserver(forumObserver);
-		getLoaderManager().destroyLoader(Constants.FORUM_INDEX_LOADER_ID);
-    }
-
-    public void displayUserCP() {
-    	if (getActivity() != null) {
-            getAwfulActivity().displayForum(Constants.USERCP_ID, 1);
-        }
-    }
-
-    
-	@Override
 	public void onPreferenceChange(AwfulPreferences mPrefs, String key) {
 		super.onPreferenceChange(mPrefs, key);
-		if(mForumIndex != null){
-			mForumIndex.setBackgroundColor(ColorProvider.getBackgroundColor());
-			mForumIndex.setCacheColorHint(ColorProvider.getBackgroundColor());
+		updateViewColours();
+	}
+
+
+	/**
+	 * Set any colours that need to change according to the current theme
+	 */
+	private void updateViewColours() {
+		if (mSRL != null) {
+			mSRL.setColorSchemeResources(ColorProvider.getSRLProgressColor());
+			mSRL.setProgressBackgroundColor(ColorProvider.getSRLBackgroundColor());
+		}
+		if (forumRecyclerView != null) {
+			forumRecyclerView.setBackgroundColor(ColorProvider.getBackgroundColor());
 		}
 	}
-	
-	private void syncForums() {
-        if(getActivity() != null){
-			// cancel pending forum index loading requests
-			NetworkUtils.cancelRequests(IndexRequest.REQUEST_TAG);
-			// call this with cancelOnDestroy=false to retain the request's specific type tag
-            queueRequest(new IndexRequest(getActivity()).build(this, new AwfulRequest.AwfulResultCallback<Void>() {
-                @Override
-                public void success(Void result) {
-                    restartLoader(Constants.FORUM_INDEX_LOADER_ID, null, mForumLoaderCallback);
-                }
 
-                @Override
-                public void failure(VolleyError error) {
-                    if(null != error.getMessage() && error.getMessage().startsWith("java.net.ProtocolException: Too many redirects")){
-                        Log.e(TAG, "Error: "+error.getMessage());
-						Log.e(TAG, "!!!Failed to sync forum index - You are now LOGGED OUT");
-                        NetworkUtils.clearLoginCookies(getAwfulActivity());
-                        getAwfulActivity().startActivity(new Intent().setClass(getAwfulActivity(), AwfulLoginActivity.class));
-                    }
-                    restartLoader(Constants.FORUM_INDEX_LOADER_ID, null, mForumLoaderCallback);
-                }
-            }), false);
-			queueRequest(new IndexIconRequest(getActivity()).build(this, new AwfulRequest.AwfulResultCallback<Void>() {
-				public void success(Void result) {
-					restartLoader(Constants.FORUM_INDEX_LOADER_ID, null, mForumLoaderCallback);
-				}
 
-				public void failure(VolleyError error) {
-					restartLoader(Constants.FORUM_INDEX_LOADER_ID, null, mForumLoaderCallback);
-				}
-			}));
-        }
-    }
+	@Override
+	public void onForumsUpdateStarted() {
+		getActivity().runOnUiThread(new Runnable() {
+			@Override
+			public void run() {
+				Toast.makeText(getActivity(), "Forums update in progress", Toast.LENGTH_SHORT).show();
+				// TODO: make the spinny thing actually work because this doesn't
+				requestStarted(null);
+			}
+		});
+	}
+
+
+	@Override
+	public void onForumsUpdateCompleted() {
+		getActivity().runOnUiThread(new Runnable() {
+			@Override
+			public void run() {
+				Toast.makeText(getActivity(), "Forum update complete!", Toast.LENGTH_SHORT).show();
+				// stop spinny thing
+				requestEnded(null, null);
+				refreshForumList();
+			}
+		});
+	}
+
+
+	/**
+	 * Query the database for the current Forum data, and update the list
+	 */
+	private void refreshForumList() {
+		if (forumRepo == null || forumListAdapter == null) {
+			return;
+		}
+		// get a new data set (possibly empty if there's no data yet) and give it to the adapter
+		forumList = forumRepo.getFlatForumList();
+		forumListAdapter.updateForumList(forumList);
+//
+//		// let the user know if an update is in progress / complete - if the list is blank
+//		// (e.g. on first run) it shows that something is happening
+//		// TODO: ugh why doesn't this work
+//		if (forumRepo.isUpdating()) {
+//			requestStarted(null);
+//		} else {
+//            requestEnded(null, null);
+//        }
+	}
+
+
+//	public void refresh() {
+//		refreshForumList();
+//	}
+
 
 	@Override
 	public void onRefresh(SwipyRefreshLayoutDirection swipyRefreshLayoutDirection) {
-		syncForums();
+		refreshForumList();
 	}
 
-	// TODO: does this even need to be here? Syncing triggers loader restarts anyway, this spams like crazy
-	private class ForumContentObserver extends ContentObserver{
-        public ForumContentObserver(Handler handler) {
-            super(handler);
-        }
 
-        @Override
-        public void onChange(boolean selfChange) {
-//			restartLoader(Constants.FORUM_INDEX_LOADER_ID, null, mForumLoaderCallback);
-		}
-
-        @Override
-        public void onChange(boolean selfChange, Uri uri) {
-//            restartLoader(Constants.FORUM_INDEX_LOADER_ID, null, mForumLoaderCallback);
-        }
-    }
-	
-	private class ForumContentsCallback implements LoaderManager.LoaderCallbacks<Cursor> {
-
-		@Override
-		public Loader<Cursor> onCreateLoader(int aId, Bundle aArgs) {
-			if(DEBUG) Log.i(TAG,"Load Index Cursor");
-            return new CursorLoader(getActivity(),
-					AwfulForum.CONTENT_URI,
-					AwfulProvider.ForumProjection,
-					AwfulProvider.TABLE_FORUM+"."+ AwfulForum.PARENT_ID+"== 0",
-					null,
-					AwfulForum.INDEX);
-        }
-
-		@Override
-        public void onLoadFinished(Loader<Cursor> aLoader, Cursor aData) {
-        	if(aData != null && !aData.isClosed() && aData.moveToFirst()){
-            	Log.v(TAG, "Index cursor: " + aData.getCount());
-        		if(aData.getCount() > 10){
-        			aData.move(8);
-        		}
-				mTreeAdapter.setGroupCursor(aData);
-        	}
-			updateProbationBar();
-        }
-
-		@Override
-		public void onLoaderReset(Loader<Cursor> arg0) {
-			Log.e(TAG, "resetLoader: " + arg0.getId());
-//			mTreeAdapter.setGroupCursor(null);
-		}
-    }
-	
-	public static class ForumEntry{
-		public int id;
-		public int parentId;
-		public String title;
-		public String subtitle;
-		public String tagUrl;
-		public ForumEntry(int aId, int parent, String aTitle, String aSubtitle, String aTagUrl){
-			id = aId; parentId = parent; title = aTitle; subtitle = aSubtitle; tagUrl = aTagUrl;
-		}
+	@Override
+	public void onForumClicked(@NonNull Forum forum) {
+		displayForum(forum.id, 1);
 	}
-	
-	private class AwfulTreeListAdapter extends CursorTreeAdapter {
-		private LayoutInflater inf;
 
-		public AwfulTreeListAdapter(Cursor cursor, Activity activity) {
-			super(cursor, activity);
-			inf = (LayoutInflater) activity.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-		}
-
-		@Override
-		protected Cursor getChildrenCursor(Cursor groupCursor) {
-			CursorLoader cl = new CursorLoader(getActivity(),
-					AwfulForum.CONTENT_URI,
-					AwfulProvider.ForumProjection,
-					AwfulProvider.TABLE_FORUM + "." + AwfulForum.PARENT_ID + "== " + groupCursor.getInt(groupCursor.getColumnIndex(AwfulForum.ID)),
-					null,
-					AwfulForum.INDEX);
-			return cl.loadInBackground();
-		}
-
-		@Override
-		public View getGroupView(int groupPosition, boolean isExpanded, View convertView, ViewGroup parent) {
-			View v = super.getGroupView(groupPosition, isExpanded, convertView, parent);
-			View ind = v.findViewById( R.id.explist_indicator);
-			if( ind != null ) {
-				ImageView indicator = (ImageView)ind;
-				if( getChildrenCount( groupPosition ) < 1 ) {
-					indicator.setVisibility( View.INVISIBLE );
-				} else {
-					indicator.setVisibility( View.VISIBLE );
-					int stateSetIndex = ( isExpanded ? 1 : 0) ;
-					Drawable drawable = indicator.getDrawable();
-					drawable.setState(GROUP_STATE_SETS[stateSetIndex]);
-				}
-			}
-			return v;
-		}
-
-
-		@Override
-		protected View newGroupView(Context context, Cursor cursor, boolean isExpanded, ViewGroup parent) {
-			View row = inf.inflate(R.layout.forum_item_mainforum, parent, false);
-			makeForumEntry(row, cursor, true);
-			return row;
-		}
-
-		@Override
-		protected void bindGroupView(View view, Context context, Cursor cursor, boolean isExpanded) {
-			makeForumEntry(view, cursor, true);
-		}
-
-		@Override
-		protected View newChildView(Context context, Cursor cursor, boolean isLastChild, ViewGroup parent) {
-			View row = inf.inflate(R.layout.forum_item_subforum, null, false);
-			makeForumEntry(row, cursor, false);
-			return row;
-		}
-
-		@Override
-		protected void bindChildView(View view, Context context, Cursor cursor, boolean isLastChild) {
-			makeForumEntry(view, cursor, false);
-
-		}
-
-		private void makeForumEntry(View view, Cursor cursor, boolean hasChildren) {
-			ForumEntry data = new ForumEntry(cursor.getInt(cursor.getColumnIndex(AwfulForum.ID)),
-					cursor.getInt(cursor.getColumnIndex(AwfulForum.PARENT_ID)),
-					cursor.getString(cursor.getColumnIndex(AwfulForum.TITLE)),
-					cursor.getString(cursor.getColumnIndex(AwfulForum.SUBTEXT)),
-					cursor.getString(cursor.getColumnIndex(AwfulForum.TAG_URL))
-			);
-
-			AwfulForum.getExpandableForumView(view,
-					mPrefs,
-					data,
-					selectedForum > 0 && selectedForum == data.id,
-					hasChildren);
-
-			View thread = view.findViewById(R.id.thread_box);
-			if(null != thread){
-				final int id = cursor.getInt(cursor.getColumnIndex(AwfulForum.ID));
-				thread.setOnClickListener(new OnClickListener() {
-					@Override
-					public void onClick(View v) {
-						selectedForum = id;
-						displayForum(id, 1);
-					}
-				});
-			}
-			getAwfulActivity().setPreferredFont(view);
-		}
-
-	}
-	
 	@Override
 	public String getTitle() {
 		if(getActivity() != null){
@@ -403,10 +247,6 @@ public class ForumsIndexFragment extends AwfulFragment implements SwipyRefreshLa
 		}
 	}
 
-	public void refresh() {
-		syncForums();
-	}
-
 	@Override
 	public boolean volumeScroll(KeyEvent event) {
 		int action = event.getAction();
@@ -414,12 +254,12 @@ public class ForumsIndexFragment extends AwfulFragment implements SwipyRefreshLa
 	        switch (keyCode) {
 	        case KeyEvent.KEYCODE_VOLUME_UP:
 	            if (action == KeyEvent.ACTION_DOWN) {
-	            	mForumIndex.smoothScrollBy(-mForumIndex.getHeight()/2, 0);
+	            	forumRecyclerView.smoothScrollBy(-forumRecyclerView.getHeight()/2, 0);
 	            }
 	            return true;
 	        case KeyEvent.KEYCODE_VOLUME_DOWN:
 	            if (action == KeyEvent.ACTION_DOWN) {
-	            	mForumIndex.smoothScrollBy(mForumIndex.getHeight()/2, 0);
+	            	forumRecyclerView.smoothScrollBy(forumRecyclerView.getHeight()/2, 0);
 	            }
 	            return true;
 	        default:
@@ -432,7 +272,7 @@ public class ForumsIndexFragment extends AwfulFragment implements SwipyRefreshLa
 			mProbationBar.setVisibility(View.GONE);
 			return;
 		}
-		mProbationBar.setVisibility(View.VISIBLE);
+		mProbationBar.setVisibility(VISIBLE);
 		mProbationMessage.setText(String.format(this.getResources().getText(R.string.probation_message).toString(),new Date(mPrefs.probationTime).toLocaleString()));
 		mProbationButton.setOnClickListener(new OnClickListener() {
 			
