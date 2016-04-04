@@ -19,15 +19,26 @@
         android:layout_below="@+id/probationbar"
         app:srl_direction="top">
 
-        <ExpandableListView
+        <android.support.v7.widget.RecyclerView
             android:id="@+id/index_view"
-            android:layout_width="fill_parent"
-            android:layout_height="fill_parent"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
             android:cacheColorHint="@color/background"
             android:divider="?attr/listDividerColor"
             android:dividerHeight="1dp"
             android:groupIndicator="@android:color/transparent"
-            android:drawSelectorOnTop="false" />
+            android:drawSelectorOnTop="false"
+            />
+
+        <!--<ExpandableListView-->
+            <!--android:id="@+id/index_view"-->
+            <!--android:layout_width="fill_parent"-->
+            <!--android:layout_height="fill_parent"-->
+            <!--android:cacheColorHint="@color/background"-->
+            <!--android:divider="?attr/listDividerColor"-->
+            <!--android:dividerHeight="1dp"-->
+            <!--android:groupIndicator="@android:color/transparent"-->
+            <!--android:drawSelectorOnTop="false" />-->
     </com.ferg.awfulapp.widget.SwipyRefreshLayout>
 
     <com.ferg.awfulapp.widget.AwfulProgressBar

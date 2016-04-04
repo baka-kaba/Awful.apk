@@ -27,7 +27,14 @@ android {
         resConfigs "en"
 
         // Stops the Gradle plugin’s automatic rasterization of vectors
-        generatedDensities = []
+        vectorDrawables.useSupportLibrary = true
+
+        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+        // ugh I just want to run unit tests without having to avoid logging
+        // this might make things difficult when we develop a comprehensive test suiahahaha
+        testOptions {
+            unitTests.returnDefaultValues = true
+        }
     }
 
     packagingOptions {
@@ -59,11 +66,6 @@ android {
             //proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard.cfg'
         }
     }
-
-    // Flag to tell aapt to keep the attribute ids around
-    aaptOptions {
-        additionalParameters "--no-version-vectors"
-    }
 }
 
 dependencies {
@@ -80,8 +82,12 @@ dependencies {
     compile 'org.apache.commons:commons-lang3:3.4'
     compile 'com.ToxicBakery.viewpager.transforms:view-pager-transforms:1.2.32@aar'
     compile 'com.github.orangegangsters:swipy:1.2.2@aar'
+    compile 'com.bignerdranch.android:expandablerecyclerview:2.1.1'
 //    compile 'com.github.OrangeGangsters:SwipyRefreshLayout:15eeb9444d'
     compile('com.crashlytics.sdk.android:crashlytics:2.5.5@aar') {
         transitive = true;
     }
+
+    testCompile 'junit:junit:4.12'
+    testCompile 'org.hamcrest:hamcrest-library:1.3'
 }

@@ -12,8 +12,11 @@ import android.widget.TextView;
 
 import com.crashlytics.android.Crashlytics;
 import com.ferg.awfulapp.constants.Constants;
+import com.ferg.awfulapp.forums.ForumRepository;
 import com.ferg.awfulapp.network.NetworkUtils;
 import com.ferg.awfulapp.preferences.AwfulPreferences;
+import com.ferg.awfulapp.task.FeatureRequest;
+import com.ferg.awfulapp.task.ProfileRequest;
 
 import java.io.File;
 import java.io.IOException;
@@ -67,6 +70,13 @@ public class AwfulApplication extends Application implements AwfulPreferences.Aw
 					.penaltyDeath()
 					.build());
 		}
+
+		Log.w(TAG, "------ syncing profile and forum details");
+		NetworkUtils.queueRequest(new ProfileRequest(getApplicationContext()).build(null, null));
+		NetworkUtils.queueRequest(new FeatureRequest(getApplicationContext()).build(null, null));
+		// TODO: this should be called -once- when a user upgrades to this system, or the forum list looks screwy until a successful update finishes
+		// ForumRepository.getInstance(getApplicationContext()).clearForumData();
+		ForumRepository.getInstance(getApplicationContext()).updateForums();
     }
 
 	public void setFontFromPreference(TextView textView, int flags){

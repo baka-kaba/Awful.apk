@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/item_container"
+    android:layout_width="fill_parent"
+    android:layout_height="wrap_content"
+    android:elevation="4dp">
+
+    <!-- If the next layout is visible, it defines the minimum height of the list item -->
+
+    <LinearLayout
+        android:id="@+id/tag_and_expander"
+        android:orientation="vertical"
+        android:layout_width="72dp"
+        android:layout_height="72dp"
+        android:layout_centerVertical="true"
+        android:gravity="center"
+        android:layout_above="@+id/section_title"
+        android:paddingLeft="6dp"
+        android:paddingRight="6dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp">
+
+        <com.android.volley.toolbox.NetworkImageView
+            android:id="@+id/forum_tag"
+            android:layout_width="60dp"
+            android:layout_height="15dp"
+            android:layout_gravity="center"
+            android:visibility="visible"/>
+
+        <ImageButton
+            android:id="@+id/explist_indicator"
+            android:src="@drawable/expander_group"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_gravity="center"
+            android:tint="?colorAccentThemeFix"
+            android:visibility="visible"/>
+
+    </LinearLayout>
+
+
+    <RelativeLayout
+        android:id="@+id/forum_details"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:layout_centerVertical="true"
+        android:paddingBottom="8dip"
+        android:paddingLeft="4dip"
+        android:paddingRight="4dip"
+        android:paddingTop="8dip"
+        android:layout_toRightOf="@+id/tag_and_expander"
+        android:layout_above="@id/section_title">
+
+        <TextView
+            android:id="@+id/forum_title"
+            style="@style/ForumListItem"
+            android:layout_height="wrap_content"
+            android:text="A Title"/>
+
+        <TextView
+            android:id="@+id/forum_subtitle"
+            android:layout_alignWithParentIfMissing="true"
+            android:layout_below="@+id/forum_title"
+            android:textAppearance="@style/Base.TextAppearance.AppCompat.Small"
+            android:text="A subtitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"/>
+
+    </RelativeLayout>
+
+    <!-- If the next view is visible (and the details / tag layouts are GONE), it determines the list item height -->
+
+    <TextView
+        android:id="@+id/section_title"
+        android:layout_width="wrap_content"
+        android:layout_height="48dp"
+        android:paddingLeft="16dp"
+        android:visibility="visible"
+        android:text="Section name"
+        android:gravity="center_vertical"
+        android:layout_centerVertical="true"
+        android:paddingRight="16dp"/>
+
+
+    <ImageView
+        android:layout_width="match_parent"
+        android:layout_height="2dp"
+        android:src="@drawable/list_divider"
+        android:layout_below="@id/section_title"
+        android:layout_alignParentBottom="true"/>
+
+</RelativeLayout>

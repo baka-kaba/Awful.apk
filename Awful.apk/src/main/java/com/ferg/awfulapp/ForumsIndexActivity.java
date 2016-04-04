@@ -69,6 +69,7 @@ import com.android.volley.toolbox.ImageLoader;
 import com.ferg.awfulapp.constants.Constants;
 import com.ferg.awfulapp.dialog.ChangelogDialog;
 import com.ferg.awfulapp.dialog.LogOutDialog;
+import com.ferg.awfulapp.forums.ForumRepository;
 import com.ferg.awfulapp.network.NetworkUtils;
 import com.ferg.awfulapp.preferences.AwfulPreferences;
 import com.ferg.awfulapp.preferences.Keys;
@@ -860,15 +861,16 @@ public class ForumsIndexActivity extends AwfulActivity {
         if (DEBUG) Log.e(TAG, "onActivityResult: " + request + " result: " + result);
         super.onActivityResult(request, result, intent);
         if (request == Constants.LOGIN_ACTIVITY_REQUEST && result == Activity.RESULT_OK) {
-            mHandler.postDelayed(new Runnable() {
-
-                @Override
-                public void run() {
-                    if (mIndexFragment != null) {
-                        mIndexFragment.refresh();
-                    }
-                }
-            }, 1000);
+//            mHandler.postDelayed(new Runnable() {
+//
+//                @Override
+//                public void run() {
+//                    if (mIndexFragment != null) {
+//                        mIndexFragment.refresh();
+//                    }
+//                }
+//            }, 1000);
+            ForumRepository.getInstance(this).updateForums();
         }
     }
 
