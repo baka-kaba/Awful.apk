@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/item_container"
     android:layout_width="fill_parent"
     android:layout_height="wrap_content"
@@ -30,12 +32,13 @@
 
         <ImageButton
             android:id="@+id/explist_indicator"
-            android:src="@drawable/expander_group"
+            app:srcCompat="@drawable/ic_expand_more"
             android:layout_width="40dp"
             android:layout_height="40dp"
             android:layout_gravity="center"
             android:tint="?colorAccentThemeFix"
-            android:visibility="visible"/>
+            android:visibility="visible"
+            tools:ignore="MissingPrefix"/>
 
     </LinearLayout>
 
@@ -86,8 +89,9 @@
     <ImageView
         android:layout_width="match_parent"
         android:layout_height="2dp"
-        android:src="@drawable/list_divider"
+        app:srcCompat="@drawable/list_divider"
         android:layout_below="@id/section_title"
-        android:layout_alignParentBottom="true"/>
+        android:layout_alignParentBottom="true"
+        tools:ignore="MissingPrefix"/>
 
 </RelativeLayout>
