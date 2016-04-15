@@ -1,6 +1,8 @@
 package com.ferg.awfulapp;
 
 import android.app.Application;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
 import android.graphics.Typeface;
 import android.os.StrictMode;
 import android.util.Log;
@@ -34,13 +36,26 @@ public class AwfulApplication extends Application implements AwfulPreferences.Aw
     public void onCreate() {
         super.onCreate();
 		NetworkUtils.init(this);
-        Fabric.with(this, new Crashlytics());
         mPref = AwfulPreferences.getInstance(this, this);
         onPreferenceChange(mPref,null);
 
-        if(mPref.sendUsernameInReport){
-			Crashlytics.setUserName(mPref.username);
-        }
+		// work out how long it's been since the app was updated
+		long hoursSinceInstall = Long.MAX_VALUE;
+		try {
+			PackageInfo packageInfo = getPackageManager().getPackageInfo(getPackageName(), 0);
+			long millisSinceInstall = System.currentTimeMillis() - packageInfo.lastUpdateTime;
+			hoursSinceInstall = TimeUnit.HOURS.convert(millisSinceInstall, TimeUnit.MILLISECONDS);
+		} catch (PackageManager.NameNotFoundException e) {
+			e.printStackTrace();
+		}
+		Log.i(TAG, String.format("App installed %d hours ago", hoursSinceInstall));
+		// enable Crashlytics on non-debug builds, or debug builds that have been installed for a while
+		if (!Constants.DEBUG || hoursSinceInstall > 4) {
+			Fabric.with(this, new Crashlytics());
+			if(mPref.sendUsernameInReport){
+				Crashlytics.setUserName(mPref.username);
+			}
+		}
 
 		if (Constants.DEBUG) {
 			Log.d("DEBUG!", "*\n*\n*Debug active\n*\n*");
