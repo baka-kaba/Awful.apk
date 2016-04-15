@@ -37,8 +37,8 @@ class ForumsRefreshTask {
 
     private static final String TAG = "ForumsRefreshTask";
     // give up if the task hasn't completed after this length of time:
-    private static final int TIMEOUT = 120;
-    private static final TimeUnit TIMEOUT_UNITS = TimeUnit.SECONDS;
+    private static final int TIMEOUT = 5;
+    private static final TimeUnit TIMEOUT_UNITS = TimeUnit.MINUTES;
 
     private final Executor taskExecutor = Executors.newSingleThreadExecutor();
     private final CountDownLatch finishedSignal = new CountDownLatch(1);

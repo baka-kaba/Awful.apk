@@ -1,17 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
-                android:layout_width="fill_parent"
-                android:layout_height="wrap_content"
-                android:minHeight="72dp"
-                android:paddingLeft="88dp"
-                android:id="@+id/item_container">
+<RelativeLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="fill_parent"
+    android:layout_height="wrap_content"
+    android:minHeight="72dp"
+    android:paddingLeft="88dp"
+    android:id="@+id/item_container">
 
     <ImageView
         android:layout_width="match_parent"
         android:layout_height="2dp"
-        android:src="@drawable/list_divider"
+        app:srcCompat="@drawable/list_divider"
         android:layout_alignParentBottom="true"
-        />
+        tools:ignore="MissingPrefix"/>
 
     <RelativeLayout
         android:id="@+id/forum_details"
