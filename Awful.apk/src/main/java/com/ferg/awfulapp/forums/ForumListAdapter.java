@@ -58,8 +58,8 @@ public class ForumListAdapter extends ExpandableRecyclerAdapter<ForumListAdapter
      * Takes a list of Forums which will form the main list.
      * Any of those which has items in {@link Forum#subforums} will be expandable,
      * and the subforums will be shown as an inner list. Any subforums of those items
-     * will be ignored. Use {@link ForumStructure#getTwoLevelList()} etc. to flatten the
-     * forums hierarchy into two levels.
+     * will be ignored. Use {@link com.ferg.awfulapp.forums.ForumStructure.ListBuilder} etc.
+     * to flatten the forums hierarchy into two levels.
      *
      * @param context   Used for layout inflation
      * @param forums    A list of Forums to display

@@ -1,7 +1,10 @@
 package com.ferg.awfulapp.forums;
 
+import android.support.annotation.IntDef;
 import android.util.Log;
 
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -9,11 +12,13 @@ import java.util.Map;
 
 /**
  * Created by baka kaba on 09/04/2016.
+ *
+ * Represents a hierarchy of forums, with methods for building the structure
+ * and converting it to various customisable list formats.
  */
 public class ForumStructure {
 
     private static final String TAG = "ForumStructure";
-
     private final List<Forum> forumTree;
 
 
@@ -46,7 +51,8 @@ public class ForumStructure {
 
         Map<Integer, Forum> forumsById = new LinkedHashMap<>();
         for (Forum forum : orderedForums) {
-            forumsById.put(forum.id, forum);
+            Forum forumCopy = new Forum(forum);
+            forumsById.put(forumCopy.id, forumCopy);
         }
 
         Forum parentForum;
@@ -81,7 +87,7 @@ public class ForumStructure {
      * @param topLevelId    The ID that represents the root of the hierarchy
      * @return              A ForumStructure with the same hierarchy
      */
-    public static ForumStructure buildFromForumTree(List<Forum> forumTree, int topLevelId) {
+    public static ForumStructure buildFromTree(List<Forum> forumTree, int topLevelId) {
         List<Forum> newForumTree = new ArrayList<>();
         copyTreeWithParentId(forumTree, newForumTree, topLevelId);
         return new ForumStructure(newForumTree);
@@ -96,65 +102,118 @@ public class ForumStructure {
      */
     private static void copyTreeWithParentId(List<Forum> sourceTree, List<Forum> destinationTree, int parentId) {
         for (Forum sourceForum : sourceTree) {
+            // TODO: this is hacky, should be able to set things all at once
             Forum forumCopy = new Forum(sourceForum.id, parentId, sourceForum.title, sourceForum.subtitle);
+            forumCopy.setType(sourceForum.getType());
             destinationTree.add(forumCopy);
             // copy this Forum's subforums, but ensure the parent IDs refer to this Forum's ID
             copyTreeWithParentId(sourceForum.subforums, forumCopy.subforums, forumCopy.id);
         }
     }
 
-    /*
-        Getters
+
+
+    ///////////////////////////////////////////////////////////////////////////
+    // List builder
+    ///////////////////////////////////////////////////////////////////////////
+
+    public ListBuilder getAsList() {
+        return new ListBuilder();
+    }
+
+    /**
+     * Output format types:
+     * <ul>
+     *     <li>FULL_TREE - the full hierarchy</li>
+     *     <li>TWO_LEVEL - categories/top-level forums/bookmarks etc at the top level,
+     *     each with any subforums compacted into a second level</li>
+     *     <li>FLAT - everything on a single level</li>
+     * </ul>
      */
+    @Retention(RetentionPolicy.SOURCE)
+    @IntDef({FULL_TREE, TWO_LEVEL, FLAT})
+    @interface ListFormat {}
+    public static final int FULL_TREE = 0;
+    public static final int TWO_LEVEL = 1;
+    public static final int FLAT = 2;
 
-    public List<Forum> getForumTree() {
-        // TODO: since the subforum lists are mutable, should this be a copy?
-        return forumTree;
-    }
+    public class ListBuilder {
 
 
-    public List<Forum> getTwoLevelListWithCategories() {
-        List<Forum> flattenedForums = new ArrayList<>();
-        for (Forum category : forumTree) {
-            // add the category but don't add its subforums
-            flattenedForums.add(new Forum(category));
-            // for each of its subforums, add the top level one into the main list
-            for (Forum topForum : category.subforums) {
-                Forum forumCopy = new Forum(topForum);
-                flattenedForums.add(forumCopy);
-                // collect each top level forum's complete subforum hierarchy as a flat list
-                collectSubforums(topForum.subforums, forumCopy.subforums);
+        private boolean includeSections = true;
+        @ListFormat
+        private int listFormat;
+
+
+        /**
+         * Include or exclude section forums (e.g. Main).
+         * If sections are excluded, their immediate subforums will appear in the top level list.
+         */
+        public ListBuilder includeSections(boolean show) {
+            includeSections = show;
+            return this;
+        }
+
+
+        /**
+         * The type of list structure to produce.
+         */
+        public ListBuilder formatAs(@ListFormat int formatType) {
+            listFormat = formatType;
+            return this;
+        }
+
+        public List<Forum> build() {
+            List<Forum> generatedList = new ArrayList<>();
+
+            for (Forum rootForum : forumTree) {
+                Forum rootForumCopy = new Forum(rootForum);
+                // only include sections if required
+                if (!rootForum.isType(Forum.SECTION) || includeSections) {
+                    generatedList.add(rootForumCopy);
+                }
+                // add its subforums to the same level, or to the subforum list as appropriate
+                for (Forum mainForum : rootForum.subforums) {
+                    Forum forumCopy = new Forum(mainForum);
+                    // the only time we don't add a top-level forum to the root list is when we're doing
+                    // the full tree structure, and we're including sections (so the TLF is added as a subforum)
+                    if (listFormat == FULL_TREE && includeSections) {
+                        rootForumCopy.subforums.add(forumCopy);
+                    } else {
+                        generatedList.add(forumCopy);
+                    }
+
+                    if (listFormat == FLAT) {
+                        // flat list - add main forum and everything below it to the top level
+                        collectSubforums(mainForum.subforums, generatedList);
+                    } else if (listFormat == TWO_LEVEL) {
+                        // two-level list - add main forum to the top level, and everything below it into its subforum list
+                        collectSubforums(mainForum.subforums, forumCopy.subforums);
+                    } else if (listFormat == FULL_TREE) {
+                        // full tree structure
+                        copyForumTree(mainForum.subforums, forumCopy.subforums);
+                    }
+                }
             }
-        }
 
-        return flattenedForums;
+            return generatedList;
+        }
     }
 
 
-    // TODO: refactor these to get rid of the shared code
-    public List<Forum> getTwoLevelList() {
-        List<Forum> flattenedForums = new ArrayList<>();
-        // copy all the top level forums into a list (new Forum objects with empty subforum lists)
-        for (Forum topForum : forumTree) {
-            Forum forumCopy = new Forum(topForum);
-            flattenedForums.add(forumCopy);
-            // collect each top level forum's complete subforum hierarchy as a flat list
-            collectSubforums(topForum.subforums, forumCopy.subforums);
+    /**
+     * Recursively copy all subforums in a tree into a supplied list.
+     * This maintains the hierarchy of the subforums and their descendants
+     * @param source        The source tree, whose hierarchy will be traversed
+     * @param collection    A list to collect all the subforum objects in
+     */
+    private static void copyForumTree(List<Forum> source, List<Forum> collection) {
+        Forum forumCopy;
+        for (Forum forum : source) {
+            forumCopy = new Forum(forum);
+            collection.add(forumCopy);
+            copyForumTree(forum.subforums, forumCopy.subforums);
         }
-
-        return flattenedForums;
-    }
-
-
-    public List<Forum> getFlatList() {
-        List<Forum> flattenedForums = new ArrayList<>();
-        for (Forum topForum : forumTree) {
-            Forum forumCopy = new Forum(topForum);
-            flattenedForums.add(forumCopy);
-            collectSubforums(topForum.subforums, flattenedForums);
-        }
-
-        return flattenedForums;
     }
 
 

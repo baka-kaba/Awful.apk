@@ -24,6 +24,7 @@ import java.util.Set;
 
 import static com.ferg.awfulapp.forums.Forum.BOOKMARKS;
 import static com.ferg.awfulapp.forums.Forum.SECTION;
+import static com.ferg.awfulapp.forums.ForumStructure.FLAT;
 
 /**
  * Created by baka kaba on 04/04/2016.
@@ -162,13 +163,10 @@ public class ForumRepository implements ForumsRefreshTask.ForumsRefreshedListene
     // Get forum data
     ///////////////////////////////////////////////////////////////////////////
 
-    // TODO: replace this with a getForumStructure call
-    @Deprecated
+
     @NonNull
-    public List<Forum> getFlatForumList() {
-        List<Forum> forumList = loadForumData();
-        ForumStructure structure = ForumStructure.buildFromOrderedList(forumList, TOP_LEVEL_PARENT_ID);
-        return structure.getTwoLevelListWithCategories();
+    public ForumStructure getForumStructure() {
+        return ForumStructure.buildFromOrderedList(loadForumData(), TOP_LEVEL_PARENT_ID);
     }
 
 
@@ -243,7 +241,12 @@ public class ForumRepository implements ForumsRefreshTask.ForumsRefreshedListene
         addForumRecord(recordsToAdd, Constants.USERCP_ID, TOP_LEVEL_PARENT_ID, "Bookmarks", "", updateTime);
 
         // get all the parsed forums in an ordered list, so we can store them in this order using the INDEX field
-        List<Forum> flattenedForums = ForumStructure.buildFromForumTree(parsedForums, TOP_LEVEL_PARENT_ID).getFlatList();
+        List<Forum> flattenedForums = ForumStructure
+                .buildFromTree(parsedForums, TOP_LEVEL_PARENT_ID)
+                .getAsList()
+                .includeSections(true)
+                .formatAs(FLAT)
+                .build();
         for (Forum forum : flattenedForums) {
             addForumRecord(recordsToAdd, forum.id, forum.parentId, forum.title, forum.subtitle, updateTime);
         }
