@@ -27,15 +27,12 @@
 
 package com.ferg.awfulapp;
 
-import android.os.Build;
 import android.os.Bundle;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.webkit.JavascriptInterface;
-import android.webkit.WebResourceRequest;
-import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -44,11 +41,8 @@ import android.widget.ProgressBar;
 import com.ferg.awfulapp.constants.Constants;
 import com.ferg.awfulapp.preferences.AwfulPreferences;
 import com.ferg.awfulapp.provider.ColorProvider;
-import com.ferg.awfulapp.thread.AwfulMessage;
-import com.ferg.awfulapp.thread.AwfulThread;
 import com.ferg.awfulapp.util.AwfulUtils;
 
-import java.io.IOException;
 import java.util.HashMap;
 
 public class PreviewFragment extends AwfulDialogFragment {
@@ -59,7 +53,6 @@ public class PreviewFragment extends AwfulDialogFragment {
     private View dialogView;
 
     HashMap<String, String> preferences;
-    String content = "";
 
     @Override
     public void onActivityCreated(Bundle aSavedState) {
