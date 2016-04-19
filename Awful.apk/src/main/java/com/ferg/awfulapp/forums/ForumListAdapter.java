@@ -2,6 +2,7 @@ package com.ferg.awfulapp.forums;
 
 import android.content.Context;
 import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 import android.support.v4.view.animation.FastOutSlowInInterpolator;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -17,6 +18,7 @@ import com.bignerdranch.expandablerecyclerview.ViewHolder.ChildViewHolder;
 import com.bignerdranch.expandablerecyclerview.ViewHolder.ParentViewHolder;
 import com.ferg.awfulapp.R;
 import com.ferg.awfulapp.network.NetworkUtils;
+import com.ferg.awfulapp.preferences.AwfulPreferences;
 import com.ferg.awfulapp.provider.ColorProvider;
 
 import java.util.ArrayList;
@@ -39,6 +41,7 @@ import static com.ferg.awfulapp.forums.Forum.SECTION;
  */
 public class ForumListAdapter extends ExpandableRecyclerAdapter<ForumListAdapter.TopLevelForumHolder, ForumListAdapter.SubforumHolder> {
 
+    private final AwfulPreferences awfulPrefs;
     @NonNull
     private final EventListener eventListener;
     @NonNull
@@ -64,13 +67,15 @@ public class ForumListAdapter extends ExpandableRecyclerAdapter<ForumListAdapter
      * @param context   Used for layout inflation
      * @param forums    A list of Forums to display
      * @param listener  Gets callbacks for clicks etc
+     * @param awfulPreferences used to check for user options
      * @return  an adapter containing the provided forums
      */
 	public static ForumListAdapter getInstance(@NonNull Context context,
                                                @NonNull List<Forum> forums,
-                                               @NonNull EventListener listener) {
+                                               @NonNull EventListener listener,
+                                               @Nullable AwfulPreferences awfulPreferences) {
         List<TopLevelForum> topLevelForums = new ArrayList<>();
-        ForumListAdapter adapter = new ForumListAdapter(context, topLevelForums, listener);
+        ForumListAdapter adapter = new ForumListAdapter(context, topLevelForums, listener, awfulPreferences);
         // this is a stupid hack so we can supply the constructor with a list of objects we
         // can't even create without an instance... it's better than pulling TopLevelForum out
         // into a separate file at least
@@ -82,9 +87,11 @@ public class ForumListAdapter extends ExpandableRecyclerAdapter<ForumListAdapter
 
 	private ForumListAdapter(@NonNull Context context,
                              @NonNull List<TopLevelForum> topLevelForums,
-                             @NonNull EventListener listener) {
+                             @NonNull EventListener listener,
+                             @Nullable AwfulPreferences awfulPreferences) {
         super(topLevelForums);
         eventListener = listener;
+        awfulPrefs = awfulPreferences;
         inflater = LayoutInflater.from(context);
         interpolator = new FastOutSlowInInterpolator();
     }
@@ -106,7 +113,7 @@ public class ForumListAdapter extends ExpandableRecyclerAdapter<ForumListAdapter
     /**
      * Update the contents of the data set with a new list of forums.
      * @param forums    The new list to display
-     *                  (see {@link #getInstance(Context, List, EventListener)} for the list format)
+     *                  (see {@link #getInstance(Context, List, EventListener, AwfulPreferences)} for the list format)
      */
     public void updateForumList(@NonNull List<Forum> forums) {
         @SuppressWarnings("unchecked")
@@ -236,15 +243,20 @@ public class ForumListAdapter extends ExpandableRecyclerAdapter<ForumListAdapter
             title.setText(forum.title);
             subtitle.setText(forum.subtitle);
             sectionTitle.setText(forum.title);
-            // we hide the subtitle if it's not there so that the title gets vertically centred
-            subtitle.setVisibility(forum.subtitle.isEmpty() ? GONE : VISIBLE);
+
+            // we remove the subtitle if it's not there (or it's disabled) so that the title gets vertically centred
+            boolean subtitlesEnabled = false;
+            if (awfulPrefs != null) {
+                subtitlesEnabled = awfulPrefs.forumIndexShowSubtitles;
+            }
+            subtitle.setVisibility(!forum.subtitle.isEmpty() && subtitlesEnabled ? VISIBLE : GONE);
 
             setColours(itemView, title, subtitle, sectionTitle);
 
             // the left section (potentially) has a tag and a dropdown button, anything missing
             // is set to GONE so whatever's there gets vertically centred, and the space remains
 
-            // if there's a forum tag then display it, otherwise hide it
+            // if there's a forum tag then display it, otherwise remove it
             boolean hasForumTag = forum.getTagUrl() != null;
             if (hasForumTag) {
                 forumTag.setImageUrl(forum.getTagUrl(), NetworkUtils.getImageLoader());
@@ -292,6 +304,8 @@ public class ForumListAdapter extends ExpandableRecyclerAdapter<ForumListAdapter
 		@Override
 		public void onExpansionToggled(boolean expanded) {
 			super.onExpansionToggled(expanded);
+            // TODO: make a proper button with toggleable state + anims, so it can just be set to the correct state in bind()
+            // right now a rotated button is sticking when its view is recycled
 			dropdownButton
 					.animate()
 					.rotation(expanded ? 0 : -540)
@@ -318,6 +332,12 @@ public class ForumListAdapter extends ExpandableRecyclerAdapter<ForumListAdapter
 		public void bind(final Forum forumItem) {
 			mTitle.setText(forumItem.title);
 			mSubtitle.setText(forumItem.subtitle);
+
+            boolean subtitlesEnabled = false;
+            if (awfulPrefs != null) {
+                subtitlesEnabled = awfulPrefs.forumIndexShowSubtitles;
+            }
+            mSubtitle.setVisibility(subtitlesEnabled ? VISIBLE : GONE);
 
 			setColours(itemLayout, mTitle, mSubtitle);
 

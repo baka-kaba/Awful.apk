@@ -59,6 +59,7 @@ import java.util.Date;
 import java.util.List;
 
 import static android.view.View.VISIBLE;
+import static com.ferg.awfulapp.forums.ForumStructure.FLAT;
 import static com.ferg.awfulapp.forums.ForumStructure.TWO_LEVEL;
 
 public class ForumsIndexFragment extends AwfulFragment
@@ -114,7 +115,7 @@ public class ForumsIndexFragment extends AwfulFragment
 
 		forumRepo = ForumRepository.getInstance(getContext());
 		List<Forum> forumList = forumRepo.getForumStructure().getAsList().build();
-		forumListAdapter = ForumListAdapter.getInstance(context, forumList, this);
+		forumListAdapter = ForumListAdapter.getInstance(context, forumList, this, mPrefs);
 		forumRecyclerView.setAdapter(forumListAdapter);
 		forumRecyclerView.setLayoutManager(new LinearLayoutManager(context));
 	}
@@ -210,8 +211,8 @@ public class ForumsIndexFragment extends AwfulFragment
 		// get a new data set (possibly empty if there's no data yet) and give it to the adapter
 		List<Forum> forumList = forumRepo.getForumStructure()
 				.getAsList()
-				.includeSections(true)
-				.formatAs(TWO_LEVEL)
+				.includeSections(mPrefs.forumIndexShowSections)
+				.formatAs(mPrefs.forumIndexHideSubforums ? TWO_LEVEL : FLAT)
 				.build();
 		forumListAdapter.updateForumList(forumList);
 	}
