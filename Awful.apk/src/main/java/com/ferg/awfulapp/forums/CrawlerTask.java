@@ -3,13 +3,9 @@ package com.ferg.awfulapp.forums;
 import android.content.Context;
 import android.net.Uri;
 import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
-import android.support.annotation.WorkerThread;
 import android.util.Log;
 
 import com.ferg.awfulapp.constants.Constants;
-import com.ferg.awfulapp.network.NetworkUtils;
-import com.ferg.awfulapp.task.AwfulRequest;
 import com.ferg.awfulapp.util.AwfulError;
 
 import org.jsoup.nodes.Document;
@@ -20,114 +16,39 @@ import java.security.InvalidParameterException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.ferg.awfulapp.constants.Constants.DEBUG;
 
 /**
- * Created by baka kaba on 01/04/2016.
+ * <p>Created by baka kaba on 01/04/2016.</p>
  *
- * A task that parses and updates the forum structure by spidering subforum links
+ * <p>A task that parses and updates the forum structure by spidering subforum links.
+ * This task is heavy (since it loads every forum page, ~75 pages at the time of writing)
+ * but parses every forum visible to the user, and captures subtitle data.</p>
+ *
+ * <p>This basically works by building a tree asynchronously. It loads the main forum page,
+ * parses it for the section links (Main, Discussion etc) and adds them to the root list as
+ * {@link Forum} objects. Then each link is followed with a separate request, and each page
+ * is parsed for its list of subforums. These are all created as Forum objects, added to their
+ * parents' subforum lists, and then their links are followed.</p>
  */
-class ForumsRefreshTask {
+class CrawlerTask extends UpdateTask {
 
-    private static final String TAG = "ForumsRefreshTask";
-    // give up if the task hasn't completed after this length of time:
-    private static final int TIMEOUT = 5;
-    private static final TimeUnit TIMEOUT_UNITS = TimeUnit.MINUTES;
-
-    private final Executor taskExecutor = Executors.newSingleThreadExecutor();
-    private final CountDownLatch finishedSignal = new CountDownLatch(1);
-
-    private final Context context;
     private final List<Forum> forumSections = Collections.synchronizedList(new ArrayList<Forum>());
-    private final AtomicInteger openTasks = new AtomicInteger();
-    private volatile boolean executed = false;
-    private volatile boolean failed = false;
+
+    { TAG = "CrawlerTask"; }
 
 
-    ForumsRefreshTask(Context context) {
-        this.context = context;
+    CrawlerTask(@NonNull Context context) {
+        super(context);
+        initialTask = new MainForumRequest();
     }
 
 
-    /**
-     * Start the refresh task.
-     * The task and its callback will be executed on a worker thread.
-     * @param callback  A listener to deliver the result to
-     */
-    void execute(@NonNull final ForumsRefreshedListener callback) {
-        if (executed) {
-            throw new IllegalStateException("Task already executed - you need to create a new one!");
-        }
-        executed = true;
-
-        taskExecutor.execute(new Runnable() {
-            @Override
-            public void run() {
-                Log.i(TAG, "Running forum update task");
-                startTask(new MainForumRequest());
-                boolean success;
-                try {
-                    boolean completed = finishedSignal.await(TIMEOUT, TIMEOUT_UNITS);
-                    if (!completed) {
-                        Log.w(TAG, "Task timeout!");
-                    }
-                    success = completed && !failed;
-                } catch (InterruptedException e) {
-                    success = false;
-                    Log.w(TAG, String.format("Task interrupted with %d jobs in queue!", openTasks.intValue()));
-                }
-
-                Log.d(TAG, String.format("Thread unlatched - success: %s\nFailure: %s", success, failed));
-                callback.onRefreshCompleted(success, (success) ? forumSections : null);
-
-                if (DEBUG && success) {
-                    Log.w(TAG, String.format("Forums parsed! %d sections found:\n\n", forumSections.size()));
-                    for (String line : printForums().split("\\n")) {
-                        Log.w(TAG, line);
-                    }
-                }
-            }
-        });
-    }
-
-
-    /**
-     * Add a new parse task to the queue, incrementing the number of pending tasks.
-     * This call will be ignored if the main task has already been flagged as failed,
-     * so it can wind down without generating new (pointless) work.
-     * @param requestTask   The task to start
-     */
-    private void startTask(@NonNull ForumParseTask requestTask) {
-        if (!failed) {
-            openTasks.incrementAndGet();
-            NetworkUtils.queueRequest(requestTask.build());
-        }
-    }
-
-
-    /**
-     * Remove a finished task from the queue, and handle its result.
-     * Every task initiated with {@link #startTask(ForumParseTask)}  must call this!
-     * If called with success = false, the main task will be flagged as failed and terminate.
-     * @param success   true if the task completed, false if it failed somehow
-     */
-    private void finishTask(boolean success) {
-        int remaining = openTasks.decrementAndGet();
-        if (!success) {
-            failed = true;
-            finishedSignal.countDown();
-            return;
-        }
-
-        if (remaining <= 0) {
-            finishedSignal.countDown();
-        }
+    @NonNull
+    @Override
+    protected ForumStructure buildForumStructure() {
+        return ForumStructure.buildFromTree(forumSections, ForumRepository.TOP_LEVEL_PARENT_ID);
     }
 
 
@@ -137,13 +58,12 @@ class ForumsRefreshTask {
      * on the main single-page listing.
      * @param doc   A JSoup document built from the main forum page
      */
-    @WorkerThread
     private void parseMainSections(Document doc) {
         // look for section links on the main page - fail immediately if we can't find them!
         Elements sections = doc.getElementsByClass("category");
         if (sections.size() == 0) {
             Log.w(TAG,  "Unable to parse main forum page - 0 links found!");
-            failed = true;
+            fail();
             return;
         }
 
@@ -165,7 +85,6 @@ class ForumsRefreshTask {
      * @param forum The Forum object representing the forum being parsed
      * @param doc   A JSoup document built from the forum's url
      */
-    @WorkerThread
     private void parseSubforums(Forum forum, Document doc) {
 
         // look for subforums
@@ -240,49 +159,9 @@ class ForumsRefreshTask {
     }
 
 
-    /*
-        Requests
-     */
-
-    /**
-     * Abstract superclass ensuring {@link #finishTask(boolean)} is always called appropriately
-     */
-    private abstract class ForumParseTask extends AwfulRequest<Void> {
-
-        String url;
-
-        public ForumParseTask() {
-            super(context, null);
-        }
-
-
-        @Override
-        protected String generateUrl(Uri.Builder urlBuilder) {
-            return url;
-        }
-
-        // TODO: request errors aren't being handled properly, e.g. failed page loads when you're not logged in don't call here, and the task times out
-
-        @Override
-        protected Void handleResponse(Document doc) throws AwfulError {
-            onRequestSucceeded(doc);
-            finishTask(true);
-            return null;
-        }
-
-
-        @Override
-        protected boolean handleError(AwfulError error, Document doc) {
-            onRequestFailed(error);
-            finishTask(false);
-            return false;
-        }
-
-
-        abstract protected void onRequestSucceeded(Document doc);
-
-        abstract protected void onRequestFailed(AwfulError error);
-    }
+    ///////////////////////////////////////////////////////////////////////////
+    // Requests
+    ///////////////////////////////////////////////////////////////////////////
 
 
     /**
@@ -333,44 +212,6 @@ class ForumsRefreshTask {
         protected void onRequestFailed(AwfulError error) {
             Log.w(TAG, String.format("Failed to load forum: %s\n%s", forum.title, error.getMessage()));
         }
-    }
-
-
-
-    /*
-        Output stuff for logging
-     */
-
-
-    private String printForums() {
-        StringBuilder sb = new StringBuilder();
-        for (Forum section : forumSections) {
-            printForum(section, 0, sb);
-        }
-        return sb.toString();
-    }
-
-    private void printForum(Forum forum, int depth, StringBuilder sb) {
-        appendPadded(sb, forum.title, depth).append(":\n");
-        if (!"".equals(forum.subtitle)) {
-            appendPadded(sb, forum.subtitle, depth).append("\n");
-        }
-        for (Forum subforum : forum.subforums) {
-            printForum(subforum, depth+1, sb);
-        }
-    }
-
-    private StringBuilder appendPadded(StringBuilder sb, String message, int pad) {
-        for (int i = 0; i < pad; i++) {
-            sb.append("-");
-        }
-        sb.append(message);
-        return sb;
-    }
-
-
-    interface ForumsRefreshedListener {
-        void onRefreshCompleted(boolean success, @Nullable List<Forum> parsedForums);
     }
 
 }
