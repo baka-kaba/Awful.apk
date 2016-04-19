@@ -34,6 +34,8 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.webkit.JavascriptInterface;
+import android.webkit.WebResourceRequest;
+import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -43,8 +45,10 @@ import com.ferg.awfulapp.constants.Constants;
 import com.ferg.awfulapp.preferences.AwfulPreferences;
 import com.ferg.awfulapp.provider.ColorProvider;
 import com.ferg.awfulapp.thread.AwfulMessage;
+import com.ferg.awfulapp.thread.AwfulThread;
 import com.ferg.awfulapp.util.AwfulUtils;
 
+import java.io.IOException;
 import java.util.HashMap;
 
 public class PreviewFragment extends AwfulDialogFragment {
@@ -55,6 +59,7 @@ public class PreviewFragment extends AwfulDialogFragment {
     private View dialogView;
 
     HashMap<String, String> preferences;
+    String content = "";
 
     @Override
     public void onActivityCreated(Bundle aSavedState) {
@@ -76,11 +81,10 @@ public class PreviewFragment extends AwfulDialogFragment {
 
 
     protected void setContent(String content) {
-        String niceContent = AwfulMessage.getMessageHtml(content, AwfulPreferences.getInstance());
         preparePreferences();
-        postPreView.loadDataWithBaseURL(Constants.BASE_URL + "/", niceContent, "text/html", "utf-8", null);
         previewProgress.setVisibility(View.GONE);
         postPreView.setVisibility(View.VISIBLE);
+        postPreView.loadDataWithBaseURL(Constants.BASE_URL, content, "text/html", "utf-8", null);
     }
 
     @Override
@@ -107,10 +111,7 @@ public class PreviewFragment extends AwfulDialogFragment {
         if (mPrefs.inlineYoutube || mPrefs.inlineWebm || mPrefs.inlineVines) {//YOUTUBE SUPPORT BLOWS
             postPreView.getSettings().setPluginState(WebSettings.PluginState.ON_DEMAND);
         }
-        if (AwfulUtils.isAtLeast(Build.VERSION_CODES.JELLY_BEAN_MR1) && (mPrefs.inlineWebm || mPrefs.inlineVines)) {
-            postPreView.getSettings().setMediaPlaybackRequiresUserGesture(false);
-        }
-        if (mPrefs.inlineTweets && AwfulUtils.isJellybean()) {
+        if (AwfulUtils.isJellybean()) {
             postPreView.getSettings().setAllowUniversalAccessFromFileURLs(true);
             postPreView.getSettings().setAllowFileAccessFromFileURLs(true);
             postPreView.getSettings().setAllowFileAccess(true);
@@ -124,7 +125,6 @@ public class PreviewFragment extends AwfulDialogFragment {
             @Override
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
-
                 postPreView.loadUrl("javascript:pageinit()");
             }
 
