@@ -99,8 +99,8 @@ public class ForumRepository implements UpdateTask.ResultListener {
         // synchronize to make sure only one update can start
         if (!refreshActive) {
             refreshActive = true;
-//            UpdateTask refreshTask = new CrawlerTask(context);
-            UpdateTask refreshTask = new DropdownParserTask(context);
+            UpdateTask refreshTask = new CrawlerTask(context);
+//            UpdateTask refreshTask = new DropdownParserTask(context);
             refreshTask.execute(this);
             for (ForumsUpdateListener listener : listeners) {
                 listener.onForumsUpdateStarted();

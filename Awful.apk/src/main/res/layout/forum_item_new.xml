@@ -4,7 +4,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/item_container"
-    android:layout_width="fill_parent"
+    android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:elevation="4dp">
 
@@ -37,6 +37,7 @@
             android:layout_height="40dp"
             android:layout_gravity="center"
             android:tint="?colorAccentThemeFix"
+            style="?android:attr/borderlessButtonStyle"
             android:visibility="visible"
             tools:ignore="MissingPrefix"/>
 
@@ -45,7 +46,7 @@
 
     <RelativeLayout
         android:id="@+id/forum_details"
-        android:layout_width="fill_parent"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_centerVertical="true"
         android:paddingBottom="8dip"
@@ -57,18 +58,16 @@
 
         <TextView
             android:id="@+id/forum_title"
-            style="@style/ForumListItem"
+            style="@style/ForumListTitle"
             android:layout_height="wrap_content"
             android:text="A Title"/>
 
         <TextView
             android:id="@+id/forum_subtitle"
+            style="@style/ForumListTitle.Subtitle"
             android:layout_alignWithParentIfMissing="true"
             android:layout_below="@+id/forum_title"
-            android:textAppearance="@style/Base.TextAppearance.AppCompat.Small"
-            android:text="A subtitle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"/>
+            android:text="A subtitle"/>
 
     </RelativeLayout>
 
@@ -76,20 +75,24 @@
 
     <TextView
         android:id="@+id/section_title"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="48dp"
         android:paddingLeft="16dp"
         android:visibility="visible"
         android:text="Section name"
+        android:background="?attr/colorPrimary"
+        android:textColor="?attr/iconColor"
         android:gravity="center_vertical"
         android:layout_centerVertical="true"
         android:paddingRight="16dp"/>
 
 
     <ImageView
+        android:id="@+id/list_divider"
         android:layout_width="match_parent"
-        android:layout_height="2dp"
+        android:layout_height="wrap_content"
         app:srcCompat="@drawable/list_divider"
+        android:tint="?attr/listDividerColor"
         android:layout_below="@id/section_title"
         android:layout_alignParentBottom="true"
         tools:ignore="MissingPrefix"/>

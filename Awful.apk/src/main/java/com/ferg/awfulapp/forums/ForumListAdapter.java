@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static android.view.View.GONE;
+import static android.view.View.INVISIBLE;
 import static android.view.View.VISIBLE;
 import static com.ferg.awfulapp.forums.Forum.BOOKMARKS;
 import static com.ferg.awfulapp.forums.Forum.FORUM;
@@ -199,6 +200,7 @@ public class ForumListAdapter extends ExpandableRecyclerAdapter<ForumListAdapter
         private final View tagArea;
         private final View detailsArea;
 
+
         // right column (used for forums)
         private final TextView title;
         private final TextView subtitle;
@@ -209,6 +211,9 @@ public class ForumListAdapter extends ExpandableRecyclerAdapter<ForumListAdapter
 
         // section title (used for section headers)
         private final TextView sectionTitle;
+
+        // the divider line
+        private final View listDivider;
 
 
 		public TopLevelForumHolder(View itemView, Interpolator interpolator) {
@@ -225,7 +230,9 @@ public class ForumListAdapter extends ExpandableRecyclerAdapter<ForumListAdapter
             sectionTitle = (TextView) itemView.findViewById(R.id.section_title);
             forumTag = (NetworkImageView) itemView.findViewById(R.id.forum_tag);
             dropdownButton = (ImageView) itemView.findViewById(R.id.explist_indicator);
-		}
+
+            listDivider = itemView.findViewById(R.id.list_divider);
+        }
 
 
 		public void bind(final TopLevelForum forumItem) {
@@ -239,6 +246,10 @@ public class ForumListAdapter extends ExpandableRecyclerAdapter<ForumListAdapter
             detailsArea.setVisibility(forum.isType(SECTION) ? GONE : VISIBLE);
             sectionTitle.setVisibility(forum.isType(SECTION) ? VISIBLE : GONE);
 
+            // hide the list divider for section titles and expanded parent forums
+            boolean hideDivider = forum.isType(SECTION) || forumItem.isInitiallyExpanded();
+            listDivider.setVisibility(hideDivider ? INVISIBLE : VISIBLE);
+
             // sectionTitle is basically a differently formatted version of the title
             title.setText(forum.title);
             subtitle.setText(forum.subtitle);
@@ -251,7 +262,7 @@ public class ForumListAdapter extends ExpandableRecyclerAdapter<ForumListAdapter
             }
             subtitle.setVisibility(!forum.subtitle.isEmpty() && subtitlesEnabled ? VISIBLE : GONE);
 
-            setColours(itemView, title, subtitle, sectionTitle);
+            setColours(itemView, title, subtitle);
 
             // the left section (potentially) has a tag and a dropdown button, anything missing
             // is set to GONE so whatever's there gets vertically centred, and the space remains
@@ -269,6 +280,7 @@ public class ForumListAdapter extends ExpandableRecyclerAdapter<ForumListAdapter
 			boolean hasSubforums = !forumItem.getChildItemList().isEmpty();
             if (hasSubforums) {
                 dropdownButton.setVisibility(VISIBLE);
+                rotateDropdown(dropdownButton, !isExpanded(), true);
                 dropdownButton.setOnClickListener(new View.OnClickListener() {
                     @Override
                     public void onClick(View v) {
@@ -281,6 +293,7 @@ public class ForumListAdapter extends ExpandableRecyclerAdapter<ForumListAdapter
                 });
             } else {
                 dropdownButton.setVisibility(GONE);
+                dropdownButton.setOnClickListener(null);
             }
 
             // make forums and bookmarks clickable (not headers!)
@@ -302,44 +315,66 @@ public class ForumListAdapter extends ExpandableRecyclerAdapter<ForumListAdapter
 
 
 		@Override
-		public void onExpansionToggled(boolean expanded) {
-			super.onExpansionToggled(expanded);
+		public void onExpansionToggled(boolean closing) {
+			super.onExpansionToggled(closing);
             // TODO: make a proper button with toggleable state + anims, so it can just be set to the correct state in bind()
             // right now a rotated button is sticking when its view is recycled
-			dropdownButton
-					.animate()
-					.rotation(expanded ? 0 : -540)
-					.setInterpolator(interpolator);
+            rotateDropdown(dropdownButton, closing, false);
+            listDivider.setVisibility(closing ? VISIBLE : INVISIBLE);
 		}
 	}
 
 
+    /**
+     * Rotate the dropdown button to the up or down position.
+     * @param dropdown  The view to rotate
+     * @param down      True to rotate to the down state, false for up
+     * @param immediate True will immediately set the visual state, false will animate
+     */
+    private void rotateDropdown(@NonNull ImageView dropdown, boolean down, boolean immediate) {
+        final int DOWN_ROTATION = 0;
+        final int UP_ROTATION = -540;
+        if (immediate) {
+            dropdown.animate()
+                    .setDuration(0)
+                    .rotation(down ? DOWN_ROTATION : UP_ROTATION)
+                    .setInterpolator(interpolator);
+        } else {
+            dropdown.animate()
+                    .setDuration(400)
+                    .rotation(down ? DOWN_ROTATION : UP_ROTATION)
+                    .setInterpolator(interpolator);
+        }
+    }
+
+
 	class SubforumHolder extends ChildViewHolder {
 
-		private final TextView mTitle;
-		private final TextView mSubtitle;
+		private final TextView title;
+		private final TextView subtitle;
 		private final View forumDetails;
 		private final View itemLayout;
 
 		public SubforumHolder(View itemView) {
 			super(itemView);
-			mTitle = (TextView) itemView.findViewById(R.id.forum_title);
-			mSubtitle = (TextView) itemView.findViewById(R.id.forum_subtitle);
+			title = (TextView) itemView.findViewById(R.id.forum_title);
+			subtitle = (TextView) itemView.findViewById(R.id.forum_subtitle);
 			forumDetails = itemView.findViewById(R.id.forum_details);
 			itemLayout = itemView.findViewById(R.id.item_container);
 		}
 
 		public void bind(final Forum forumItem) {
-			mTitle.setText(forumItem.title);
-			mSubtitle.setText(forumItem.subtitle);
+			title.setText(forumItem.title);
+			subtitle.setText(forumItem.subtitle);
 
+            // we remove the subtitle if it's not there (or it's disabled) so that the title gets vertically centred
             boolean subtitlesEnabled = false;
             if (awfulPrefs != null) {
                 subtitlesEnabled = awfulPrefs.forumIndexShowSubtitles;
             }
-            mSubtitle.setVisibility(subtitlesEnabled ? VISIBLE : GONE);
+            subtitle.setVisibility(!forumItem.subtitle.isEmpty() && subtitlesEnabled ? VISIBLE : GONE);
 
-			setColours(itemLayout, mTitle, mSubtitle);
+			setColours(itemLayout, title, subtitle);
 
 			forumDetails.setOnClickListener(new View.OnClickListener() {
 				@Override
@@ -354,14 +389,11 @@ public class ForumListAdapter extends ExpandableRecyclerAdapter<ForumListAdapter
     /**
      * Apply colour theming
      * @param mainView      The main item layout, has its background set
-     * @param textViews     Any textviews that need their colour setting
      */
-    private void setColours(View mainView, TextView... textViews) {
+    private void setColours(View mainView, TextView title, TextView subtitle) {
         mainView.setBackgroundColor(ColorProvider.getBackgroundColor());
-        for (TextView textView : textViews) {
-            textView.setTextColor(ColorProvider.getTextColor());
-        }
-
+        title.setTextColor(ColorProvider.getTextColor());
+        subtitle.setTextColor(ColorProvider.getAltTextColor());
     }
 
 }
