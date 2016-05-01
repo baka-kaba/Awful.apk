@@ -24,6 +24,7 @@ import java.util.Set;
 
 import static com.ferg.awfulapp.forums.Forum.BOOKMARKS;
 import static com.ferg.awfulapp.forums.Forum.SECTION;
+import static com.ferg.awfulapp.forums.ForumStructure.FLAT;
 
 /**
  * Created by baka kaba on 04/04/2016.
@@ -31,7 +32,7 @@ import static com.ferg.awfulapp.forums.Forum.SECTION;
  * Provides access to current forum state, forcing updates etc.
  *
  */
-public class ForumRepository implements ForumsRefreshTask.ForumsRefreshedListener {
+public class ForumRepository implements UpdateTask.ResultListener {
 
     private static final String TAG = "ForumRepo";
     /** The ID of the 'root' of the forums hierarchy - anything with this parent ID will be top-level */
@@ -98,7 +99,8 @@ public class ForumRepository implements ForumsRefreshTask.ForumsRefreshedListene
         // synchronize to make sure only one update can start
         if (!refreshActive) {
             refreshActive = true;
-            ForumsRefreshTask refreshTask = new ForumsRefreshTask(context);
+            UpdateTask refreshTask = new CrawlerTask(context);
+//            UpdateTask refreshTask = new DropdownParserTask(context);
             refreshTask.execute(this);
             for (ForumsUpdateListener listener : listeners) {
                 listener.onForumsUpdateStarted();
@@ -111,9 +113,9 @@ public class ForumRepository implements ForumsRefreshTask.ForumsRefreshedListene
 
 
     @Override
-    public void onRefreshCompleted(boolean success, @Nullable List<Forum> parsedForums) {
-        if (success && parsedForums != null) {
-            storeForumData(parsedForums);
+    public void onRefreshCompleted(boolean success, @Nullable ForumStructure parsedStructure) {
+        if (success && parsedStructure != null) {
+            storeForumData(parsedStructure);
             refreshTags();
         } else {
             onUpdateComplete();
@@ -162,13 +164,10 @@ public class ForumRepository implements ForumsRefreshTask.ForumsRefreshedListene
     // Get forum data
     ///////////////////////////////////////////////////////////////////////////
 
-    // TODO: replace this with a getForumStructure call
-    @Deprecated
+
     @NonNull
-    public List<Forum> getFlatForumList() {
-        List<Forum> forumList = loadForumData();
-        ForumStructure structure = ForumStructure.buildFromOrderedList(forumList, TOP_LEVEL_PARENT_ID);
-        return structure.getTwoLevelListWithCategories();
+    public ForumStructure getForumStructure() {
+        return ForumStructure.buildFromOrderedList(loadForumData(), TOP_LEVEL_PARENT_ID);
     }
 
 
@@ -179,7 +178,7 @@ public class ForumRepository implements ForumsRefreshTask.ForumsRefreshedListene
 
     /**
      * Get all forums stored in the DB, as a list of Forums ordered by index.
-     * See {@link #storeForumData(List)} for details on index ordering.
+     * See {@link #storeForumData(ForumStructure)} for details on index ordering.
      * @return  The list of Forums
      */
     @NonNull
@@ -229,9 +228,9 @@ public class ForumRepository implements ForumsRefreshTask.ForumsRefreshedListene
      * The forums will be assigned an index in the order they're passed in. This index is used
      * to determine the order a group of forums should be displayed in, e.g. a flat list of all
      * forums, or within a list of subforums.
-     * @param parsedForums  A list of Forums, in order of display priority
+     * @param parsedStructure  The forum hierarchy
      */
-    private void storeForumData(@NonNull List<Forum> parsedForums) {
+    private void storeForumData(@NonNull ForumStructure parsedStructure) {
         ContentResolver contentResolver = context.getContentResolver();
         String updateTime = new Timestamp(System.currentTimeMillis()).toString();
         List<ContentValues> recordsToAdd = new ArrayList<>();
@@ -243,7 +242,11 @@ public class ForumRepository implements ForumsRefreshTask.ForumsRefreshedListene
         addForumRecord(recordsToAdd, Constants.USERCP_ID, TOP_LEVEL_PARENT_ID, "Bookmarks", "", updateTime);
 
         // get all the parsed forums in an ordered list, so we can store them in this order using the INDEX field
-        List<Forum> flattenedForums = ForumStructure.buildFromForumTree(parsedForums, TOP_LEVEL_PARENT_ID).getFlatList();
+        List<Forum> flattenedForums = parsedStructure
+                .getAsList()
+                .includeSections(true)
+                .formatAs(FLAT)
+                .build();
         for (Forum forum : flattenedForums) {
             addForumRecord(recordsToAdd, forum.id, forum.parentId, forum.title, forum.subtitle, updateTime);
         }

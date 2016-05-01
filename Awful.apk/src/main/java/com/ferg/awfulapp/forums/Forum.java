@@ -68,6 +68,12 @@ public class Forum {
         type = forumType;
     }
 
+    @ForumType
+    public int getType() {
+        return type;
+    }
+
+
     public boolean isType(@ForumType int forumType) {
         return forumType == type;
     }

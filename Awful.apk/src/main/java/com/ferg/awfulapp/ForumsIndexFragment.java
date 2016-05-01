@@ -59,6 +59,8 @@ import java.util.Date;
 import java.util.List;
 
 import static android.view.View.VISIBLE;
+import static com.ferg.awfulapp.forums.ForumStructure.FLAT;
+import static com.ferg.awfulapp.forums.ForumStructure.TWO_LEVEL;
 
 public class ForumsIndexFragment extends AwfulFragment
 		implements SwipyRefreshLayout.OnRefreshListener, ForumRepository.ForumsUpdateListener, ForumListAdapter.EventListener {
@@ -73,7 +75,6 @@ public class ForumsIndexFragment extends AwfulFragment
 	private RecyclerView forumRecyclerView;
 	private ForumListAdapter forumListAdapter;
 	private ForumRepository forumRepo;
-	private List<Forum> forumList;
 
 
     @Override
@@ -113,8 +114,8 @@ public class ForumsIndexFragment extends AwfulFragment
 		Context context = getActivity();
 
 		forumRepo = ForumRepository.getInstance(getContext());
-		forumList = forumRepo.getFlatForumList();
-		forumListAdapter = ForumListAdapter.getInstance(context, forumList, this);
+		List<Forum> forumList = forumRepo.getForumStructure().getAsList().build();
+		forumListAdapter = ForumListAdapter.getInstance(context, forumList, this, mPrefs);
 		forumRecyclerView.setAdapter(forumListAdapter);
 		forumRecyclerView.setLayoutManager(new LinearLayoutManager(context));
 	}
@@ -208,23 +209,13 @@ public class ForumsIndexFragment extends AwfulFragment
 			return;
 		}
 		// get a new data set (possibly empty if there's no data yet) and give it to the adapter
-		forumList = forumRepo.getFlatForumList();
+		List<Forum> forumList = forumRepo.getForumStructure()
+				.getAsList()
+				.includeSections(mPrefs.forumIndexShowSections)
+				.formatAs(mPrefs.forumIndexHideSubforums ? TWO_LEVEL : FLAT)
+				.build();
 		forumListAdapter.updateForumList(forumList);
-//
-//		// let the user know if an update is in progress / complete - if the list is blank
-//		// (e.g. on first run) it shows that something is happening
-//		// TODO: ugh why doesn't this work
-//		if (forumRepo.isUpdating()) {
-//			requestStarted(null);
-//		} else {
-//            requestEnded(null, null);
-//        }
 	}
-
-
-//	public void refresh() {
-//		refreshForumList();
-//	}
 
 
 	@Override

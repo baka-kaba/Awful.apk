@@ -176,6 +176,7 @@
     <string name="open_thread_summary">The most Awful thread on the forums</string>
     <string name="prefs_account">Account</string>
     <string name="settings_divider_customisation">Forum appearance and behaviour</string>
+    <string name="forum_index_settings">Forum index</string>
     <string name="thread_settings">Thread list</string>
     <string name="prefs_post_display">Posts</string>
     <string name="image_settings">Images</string>
@@ -186,6 +187,13 @@
     <string name="export_settings_summary">Save a backup of your Awful choices</string>
     <string name="import_settings">Import settings</string>
     <string name="import_settings_summary">Restore your backed up settings</string>
+
+    <!-- Forum Index Settings page -->
+    <string name="forum_index_show_subtitles">Include subtitles</string>
+    <string name="forum_index_show_sections">Display sections</string>
+    <string name="forum_index_show_sections_summary">Divide the forum list by category</string>
+    <string name="forum_index_hide_subforums">Hide subforums</string>
+    <string name="forum_index_hide_subforums_summary">Put subforums in expandable lists</string>
 
     <!-- Thread Settings page -->
     <string name="threadinfo_tag">Show tags</string>
