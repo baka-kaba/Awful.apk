@@ -1,6 +1,9 @@
 package com.ferg.awfulapp.forums;
 
 import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.PorterDuff;
+import android.graphics.drawable.Drawable;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.view.animation.FastOutSlowInInterpolator;
@@ -11,6 +14,8 @@ import android.view.animation.Interpolator;
 import android.widget.ImageView;
 import android.widget.TextView;
 
+import com.android.volley.VolleyError;
+import com.android.volley.toolbox.ImageLoader;
 import com.android.volley.toolbox.NetworkImageView;
 import com.bignerdranch.expandablerecyclerview.Adapter.ExpandableRecyclerAdapter;
 import com.bignerdranch.expandablerecyclerview.Model.ParentListItem;
@@ -20,6 +25,7 @@ import com.ferg.awfulapp.R;
 import com.ferg.awfulapp.network.NetworkUtils;
 import com.ferg.awfulapp.preferences.AwfulPreferences;
 import com.ferg.awfulapp.provider.ColorProvider;
+import com.ferg.awfulapp.util.AwfulUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -207,7 +213,7 @@ public class ForumListAdapter extends ExpandableRecyclerAdapter<ForumListAdapter
 
         // left column (used for forums)
 		private final ImageView dropdownButton;
-        private final NetworkImageView forumTag;
+        private final ImageView forumTag;
 
         // section title (used for section headers)
         private final TextView sectionTitle;
@@ -228,7 +234,7 @@ public class ForumListAdapter extends ExpandableRecyclerAdapter<ForumListAdapter
             subtitle = (TextView) itemView.findViewById(R.id.forum_subtitle);
 
             sectionTitle = (TextView) itemView.findViewById(R.id.section_title);
-            forumTag = (NetworkImageView) itemView.findViewById(R.id.forum_tag);
+            forumTag = (ImageView) itemView.findViewById(R.id.forum_tag);
             dropdownButton = (ImageView) itemView.findViewById(R.id.explist_indicator);
 
             listDivider = itemView.findViewById(R.id.list_divider);
@@ -270,7 +276,33 @@ public class ForumListAdapter extends ExpandableRecyclerAdapter<ForumListAdapter
             // if there's a forum tag then display it, otherwise remove it
             boolean hasForumTag = forum.getTagUrl() != null;
             if (hasForumTag) {
-                forumTag.setImageUrl(forum.getTagUrl(), NetworkUtils.getImageLoader());
+                NetworkUtils.getImageLoader().get(forum.getTagUrl(), new ImageLoader.ImageListener() {
+                    @Override
+                    public void onResponse(ImageLoader.ImageContainer response, boolean isImmediate) {
+                        Bitmap threadTag = response.getBitmap();
+                        if (threadTag != null) {
+                            Drawable counter;
+                            if (AwfulUtils.isLollipop()) {
+                                counter = forumTag.getContext().getResources().getDrawable(R.drawable.forumtagtest, forumTag.getContext().getTheme());
+                            } else {
+                                counter = forumTag.getContext().getResources().getDrawable(R.drawable.forumtagtest);
+                            }
+                            if (counter != null) {
+                                counter.mutate();
+                                forumTag.setImageDrawable(counter);
+                                // get square color
+                                forumTag.setColorFilter(threadTag.getPixel(4,10), PorterDuff.Mode.MULTIPLY);
+                            }
+                            // get background color
+                            forumTag.setBackgroundColor(threadTag.getPixel(33,13));
+                        }
+                    }
+
+                    @Override
+                    public void onErrorResponse(VolleyError error) {
+                        //uh-oh
+                    }
+                });
                 forumTag.setVisibility(View.VISIBLE);
             }  else {
                 forumTag.setVisibility(View.GONE);

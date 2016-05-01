@@ -13,8 +13,8 @@
     <LinearLayout
         android:id="@+id/tag_and_expander"
         android:orientation="vertical"
-        android:layout_width="72dp"
-        android:layout_height="72dp"
+        android:layout_width="96dp"
+        android:layout_height="96dp"
         android:layout_centerVertical="true"
         android:gravity="center"
         android:layout_above="@+id/section_title"
@@ -23,10 +23,10 @@
         android:paddingTop="8dp"
         android:paddingBottom="8dp">
 
-        <com.android.volley.toolbox.NetworkImageView
+        <ImageView
             android:id="@+id/forum_tag"
-            android:layout_width="60dp"
-            android:layout_height="15dp"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
             android:layout_gravity="center"
             android:visibility="visible"/>
 
