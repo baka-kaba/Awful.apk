@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<android.support.constraint.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="@dimen/material_list_item_height"
+    android:paddingBottom="@dimen/material_list_item_vertical_padding"
+    android:paddingTop="@dimen/material_list_item_vertical_padding">
+
+    <TextView
+        android:id="@+id/filter_name"
+        style="@style/ForumListTitle.Subtitle"
+        android:layout_marginBottom="8dp"
+        android:layout_marginStart="8dp"
+        android:layout_marginTop="8dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        tools:text="Username"/>
+
+    <TextView
+        android:id="@+id/filter_data"
+        style="@style/ForumListTitle"
+        android:layout_marginStart="8dp"
+        app:layout_constraintBaseline_toBaselineOf="@+id/filter_name"
+        app:layout_constraintStart_toEndOf="@+id/filter_name"
+        tools:text="Some Goon"/>
+</android.support.constraint.ConstraintLayout>

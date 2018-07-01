@@ -50,9 +50,7 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/search_result_timestamp"
-        tools:text="Gh eligi alikaŭze plue, manier lingvonomo nf ido. Cit apuda leteri inkluzive oz. Dek pleje okej' frazetvortigo ha. Am jen iliard aspektismo, sed bo kapabl singularo proksimumeco, ato op tiele panjo subjekto. Mia ng nepo ilion fratineto, kio vela komo vendo ge, tiu vatto laringalo ladskatolo em.
-
-Ido ke lipa prepoziciaĵo, ano peto interjekcio co, fontoj parentezo un' oz. Gh obl kilometro subtegmentejo, iv ador nenie substantiva ajn, kuzo eŭro tempodaŭro vir ot. Do nea aligi ferio maldekstre. Oj jesa longa antaŭpriskribo hav. Ia laŭ vira alikvante hop, ul veki kernovorto esperanteca kaj."/>
+        tools:text="@tools:sample/lorem/random"/>
 
     <ImageView
         android:id="@+id/list_divider"

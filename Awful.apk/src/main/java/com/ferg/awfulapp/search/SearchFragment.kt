@@ -35,8 +35,10 @@ import android.app.ProgressDialog
 import android.os.Bundle
 import android.support.design.widget.Snackbar
 import android.support.v4.app.DialogFragment
+import android.support.v7.widget.DividerItemDecoration
 import android.support.v7.widget.LinearLayoutManager
 import android.support.v7.widget.RecyclerView
+import android.support.v7.widget.helper.ItemTouchHelper
 import android.text.Html
 import android.view.*
 import android.widget.EditText
@@ -59,6 +61,7 @@ import com.ferg.awfulapp.thread.AwfulURL
 import com.ferg.awfulapp.widget.SwipyRefreshLayout
 import com.orangegangsters.github.swipyrefreshlayout.library.SwipyRefreshLayoutDirection
 import org.apache.commons.lang3.ArrayUtils
+import org.apache.commons.lang3.StringUtils.isNotBlank
 import timber.log.Timber
 import java.util.*
 
@@ -71,8 +74,27 @@ class SearchFragment : AwfulFragment(), com.orangegangsters.github.swipyrefreshl
     private var mQueryPages: Int = 0
 
     var searchForums = HashSet<Int>()
+    var filterList = mutableListOf<SearchFilter>()
 
     private var mDialog: ProgressDialog? = null
+
+    private val filterListView: RecyclerView by lazy {
+        (view!!.findViewById(R.id.search_filters) as RecyclerView)
+                .apply {
+                    adapter = FilterListAdapter()
+                    layoutManager = LinearLayoutManager(context)
+                    addItemDecoration(DividerItemDecoration(context, (layoutManager as LinearLayoutManager).orientation))
+
+                    ItemTouchHelper(object : ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT) {
+                        override fun onMove(recyclerView: RecyclerView?, viewHolder: RecyclerView.ViewHolder?, target: RecyclerView.ViewHolder?): Boolean = false
+
+                        override fun onSwiped(viewHolder: RecyclerView.ViewHolder?, direction: Int) {
+                            (adapter as FilterListAdapter).deleteFilter(viewHolder!!.adapterPosition)
+                        }
+
+                    }).attachToRecyclerView(this)
+                }
+    }
     private val mSearchResultList: RecyclerView by lazy {
         (view!!.findViewById(R.id.search_results) as RecyclerView)
                 .apply {
@@ -135,7 +157,10 @@ class SearchFragment : AwfulFragment(), com.orangegangsters.github.swipyrefreshl
     private fun search() {
         mDialog = ProgressDialog.show(activity, getString(R.string.search_forums_active_dialog_title), getString(R.string.search_forums_active_dialog_message), true, false)
         val searchforumsprimitive = ArrayUtils.toPrimitive(searchForums.toTypedArray())
-        NetworkUtils.queueRequest(SearchRequest(this.context, mSearchQuery.text.toString().toLowerCase(), searchforumsprimitive)
+        val searchText = mSearchQuery.text.trim()
+        val query = filterList.joinToString(" ", prefix = "$searchText ".takeIf(::isNotBlank) ?: "")
+        Timber.d("Query result: $query")
+        NetworkUtils.queueRequest(SearchRequest(this.context, query, searchforumsprimitive)
                 .build(null, object : AwfulRequest.AwfulResultCallback<AwfulSearchResult> {
                     override fun success(result: AwfulSearchResult) {
                         removeDialog()
@@ -194,18 +219,8 @@ class SearchFragment : AwfulFragment(), com.orangegangsters.github.swipyrefreshl
      * Add a filter to the current set.
      */
     fun addFilter(filter: SearchFilter) {
-        // TODO: implement a better UI for this than adding to the text field - e.g. list items that can be swiped away to delete the filter
-        with(mSearchQuery) {
-            val noCursor = selectionStart == -1 || selectionEnd == -1
-            // no cursor? Put it at the end
-            val start = if (noCursor) length() else selectionStart
-            val end = if (noCursor) start else selectionEnd
-            // add the filter string, with convenient spaces around it (kind of a hack but it works)
-            val filterString = " $filter "
-            text.replace(start, end, filterString)
-            // deselect and position the cursor after what we just added (newer APIs do this automatically)
-            setSelection(start + filterString.length)
-        }
+        filterList.add(filter)
+        filterListView.adapter.notifyItemInserted(filterList.size-1)
     }
 
 
@@ -264,5 +279,31 @@ class SearchFragment : AwfulFragment(), com.orangegangsters.github.swipyrefreshl
         }
 
         override fun getItemCount() = mSearchResults.size
+    }
+
+
+    private inner class FilterListHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        internal val filterName: TextView = itemView.findViewById(R.id.filter_name)
+        internal val filterData: TextView = itemView.findViewById(R.id.filter_data)
+    }
+
+    private inner class FilterListAdapter : RecyclerView.Adapter<FilterListHolder>() {
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): FilterListHolder =
+                LayoutInflater.from(parent.context).inflate(R.layout.search_filter_list_item, parent, false).let(::FilterListHolder)
+
+        override fun getItemCount(): Int = filterList.size
+
+        override fun onBindViewHolder(holder: FilterListHolder, position: Int) {
+            with(filterList[position]) {
+                holder.filterName.text = type.label
+                holder.filterData.text = param
+            }
+        }
+
+        fun deleteFilter(position: Int) {
+            filterList.removeAt(position)
+            notifyItemRemoved(position)
+        }
+
     }
 }
