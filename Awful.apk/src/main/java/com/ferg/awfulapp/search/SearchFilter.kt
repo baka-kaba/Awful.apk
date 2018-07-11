@@ -6,6 +6,7 @@ import android.support.v7.app.AlertDialog
 import android.view.View
 import android.widget.EditText
 import com.ferg.awfulapp.R
+import com.ferg.awfulapp.preferences.AwfulPreferences
 
 /**
  * Created by baka kaba on 13/06/2018.
@@ -27,32 +28,39 @@ class SearchFilter(val type: FilterType, val param: String) : Parcelable {
     enum class FilterType(
             val filterTemplate: String,
             val label: String,
-            val description: String? = null
+            val description: String? = null,
+            val fixedValue: (() -> String)? = null
     ) {
 
         PostText("%s", "Text in posts"),
         UserId("userid:%s", "User ID"),
         Username("username:\"%s\"", "Username"),
+        MyUsername("username:\"%s\"", "My username", fixedValue = { AwfulPreferences.getInstance().username }),
         Quoting("quoting:\"%s\"", "User being quoted"),
         Before("before:\"%s\"", "Earlier than"),
         After("since:\"%s\"", "Later than"),
         ThreadId("threadid:%s", "Thread ID"),
         InTitle("intitle:\"%s\"", "Thread title", "Text in thread title");
 
+        val editable = fixedValue == null
 
         /**
          * Show a popup dialog allowing the user to add data to filter on.
          * Sets the result on the provided #SearchFragment.
          */
         fun showDialog(searchFragment: SearchFragment) {
-            SearchFilter.showDialog(searchFragment, this, callback = searchFragment::addFilter)
+            if (editable) {
+                SearchFilter.showDialog(searchFragment, this, callback = searchFragment::addFilter)
+            } else {
+                searchFragment.addFilter(SearchFilter(this, fixedValue!!()))
+            }
         }
     }
 
-    override fun toString(): String = type.filterTemplate.format(param)
+    override fun toString(): String = type.filterTemplate.format(type.fixedValue?.invoke() ?: param)
 
     fun edit(searchFragment: SearchFragment, callback: (SearchFilter) -> Unit) {
-        showDialog(searchFragment, type, param, editing = true, callback = callback)
+        if (type.editable) showDialog(searchFragment, type, param, editing = true, callback = callback)
     }
 
     //

@@ -22,8 +22,27 @@
     <TextView
         android:id="@+id/filter_data"
         style="@style/ForumListTitle"
+        android:layout_marginEnd="8dp"
         android:layout_marginStart="8dp"
+        android:ellipsize="end"
         app:layout_constraintBaseline_toBaselineOf="@+id/filter_name"
+        app:layout_constraintEnd_toStartOf="@+id/edit_filter_button"
+        app:layout_constraintHorizontal_bias="0.0"
         app:layout_constraintStart_toEndOf="@+id/filter_name"
         tools:text="Some Goon"/>
+
+    <ImageView
+        android:id="@+id/edit_filter_button"
+        style="@style/MaterialImageButton.Borderless"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:layout_marginBottom="8dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginTop="8dp"
+        android:scaleType="fitXY"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:srcCompat="@drawable/ic_create_dark"/>
+
 </android.support.constraint.ConstraintLayout>

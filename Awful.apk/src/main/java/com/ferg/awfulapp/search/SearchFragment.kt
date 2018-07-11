@@ -42,6 +42,7 @@ import android.support.v7.widget.helper.ItemTouchHelper
 import android.text.Html
 import android.view.*
 import android.widget.EditText
+import android.widget.ImageView
 import android.widget.TextView
 import com.android.volley.VolleyError
 import com.ferg.awfulapp.AwfulFragment
@@ -293,7 +294,7 @@ class SearchFragment : AwfulFragment(), com.orangegangsters.github.swipyrefreshl
     private inner class FilterListHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         internal val filterName: TextView = itemView.findViewById(R.id.filter_name)
         internal val filterData: TextView = itemView.findViewById(R.id.filter_data)
-        internal val filterView = itemView
+        internal val editButton: ImageView = itemView.findViewById(R.id.edit_filter_button)
     }
 
     private inner class FilterListAdapter : RecyclerView.Adapter<FilterListHolder>() {
@@ -305,8 +306,10 @@ class SearchFragment : AwfulFragment(), com.orangegangsters.github.swipyrefreshl
         override fun onBindViewHolder(holder: FilterListHolder, position: Int) {
             with(filterList[position]) {
                 holder.filterName.text = type.label
-                holder.filterData.text = param
-                holder.filterView.setOnClickListener { editFilter(holder.adapterPosition) }
+                // only show the filter data if it's a user-editable value
+                holder.filterData.text = if (type.editable) param else ""
+                holder.editButton.visibility = if (type.editable) View.VISIBLE else View.GONE
+                holder.editButton.setOnClickListener { editFilter(holder.adapterPosition) }
             }
         }
 
