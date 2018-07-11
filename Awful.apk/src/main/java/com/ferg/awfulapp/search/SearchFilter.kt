@@ -24,7 +24,11 @@ class SearchFilter(val type: FilterType, val param: String) : Parcelable {
      * [label] is a short name for the filter, and [description] is an optional longer version used
      * in the hint text for input dialogs.
      */
-    enum class FilterType(val filterTemplate: String, val label: String, val description: String? = null) {
+    enum class FilterType(
+            val filterTemplate: String,
+            val label: String,
+            val description: String? = null
+    ) {
 
         PostText("%s", "Text in posts"),
         UserId("userid:%s", "User ID"),
@@ -41,23 +45,15 @@ class SearchFilter(val type: FilterType, val param: String) : Parcelable {
          * Sets the result on the provided #SearchFragment.
          */
         fun showDialog(searchFragment: SearchFragment) {
-            searchFragment.activity?.run {
-                val layout = layoutInflater.inflate(R.layout.insert_text_dialog, null)
-                val textField = layout.findViewById<View>(R.id.text_field) as EditText
-                textField.hint = description ?: label
-                AlertDialog.Builder(this)
-                        .setTitle("Add search filter")
-                        .setView(layout)
-                        .setPositiveButton("Add filter", { _, _ ->
-                            searchFragment.addFilter(SearchFilter(this@FilterType, textField.text.toString()))
-                        })
-                        .show()
-            }
+            SearchFilter.showDialog(searchFragment, this, callback = searchFragment::addFilter)
         }
     }
 
     override fun toString(): String = type.filterTemplate.format(param)
 
+    fun edit(searchFragment: SearchFragment, callback: (SearchFilter) -> Unit) {
+        showDialog(searchFragment, type, param, editing = true, callback = callback)
+    }
 
     //
     // Parcelable boilerplate - maybe use @Parcelize from Kotlin Extensions?
@@ -68,14 +64,42 @@ class SearchFilter(val type: FilterType, val param: String) : Parcelable {
             parcel.readString()
     )
 
-    override fun writeToParcel(parcel: Parcel, flags: Int) {
-        parcel.writeInt(type.ordinal)
-        parcel.writeString(param)
+    override fun writeToParcel(parcel: Parcel, flags: Int) = with(parcel) {
+        writeInt(type.ordinal)
+        writeString(param)
     }
 
     override fun describeContents(): Int = 0
 
     companion object {
+
+        /**
+         * Show a popup dialog allowing the user to add data to filter on.
+         * Sets the result on the provided #SearchFragment.
+         */
+        fun showDialog(
+                searchFragment: SearchFragment,
+                filterType: FilterType,
+                filterData: String = "",
+                editing: Boolean = false,
+                callback: (SearchFilter) -> Unit
+        ) {
+            searchFragment.activity?.run {
+                val layout = layoutInflater.inflate(R.layout.insert_text_dialog, null)
+                val textField = layout.findViewById<View>(R.id.text_field) as EditText
+
+                textField.hint = filterType.description ?: filterType.label
+                textField.setText(filterData)
+                AlertDialog.Builder(this)
+                        .setTitle(if (editing) "Edit search filter" else "Add search filter")
+                        .setView(layout)
+                        .setPositiveButton(if (editing) "Confirm" else "Add filter", { _, _ ->
+                            SearchFilter(filterType, textField.text.toString()).run(callback)
+                        })
+                        .show()
+            }
+        }
+
         @JvmField
         val CREATOR = object : Parcelable.Creator<SearchFilter> {
             override fun createFromParcel(parcel: Parcel): SearchFilter = SearchFilter(parcel)

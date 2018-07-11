@@ -224,6 +224,14 @@ class SearchFragment : AwfulFragment(), com.orangegangsters.github.swipyrefreshl
     }
 
 
+    fun editFilter(position: Int) {
+        filterList[position].edit(this) {
+            filterList[position] = it
+            filterListView.adapter.notifyItemChanged(position)
+        }
+    }
+
+
     override fun onRefresh(direction: SwipyRefreshLayoutDirection) {
         Timber.i("onRefresh: %s", mMaxPageQueried)
         val preItemCount = mSearchResultList.adapter.itemCount
@@ -285,11 +293,12 @@ class SearchFragment : AwfulFragment(), com.orangegangsters.github.swipyrefreshl
     private inner class FilterListHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         internal val filterName: TextView = itemView.findViewById(R.id.filter_name)
         internal val filterData: TextView = itemView.findViewById(R.id.filter_data)
+        internal val filterView = itemView
     }
 
     private inner class FilterListAdapter : RecyclerView.Adapter<FilterListHolder>() {
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): FilterListHolder =
-                LayoutInflater.from(parent.context).inflate(R.layout.search_filter_list_item, parent, false).let(::FilterListHolder)
+                LayoutInflater.from(parent.context).inflate(R.layout.search_filter_list_item, parent, false).run(::FilterListHolder)
 
         override fun getItemCount(): Int = filterList.size
 
@@ -297,6 +306,7 @@ class SearchFragment : AwfulFragment(), com.orangegangsters.github.swipyrefreshl
             with(filterList[position]) {
                 holder.filterName.text = type.label
                 holder.filterData.text = param
+                holder.filterView.setOnClickListener { editFilter(holder.adapterPosition) }
             }
         }
 
