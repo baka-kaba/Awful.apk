@@ -12,7 +12,7 @@
         android:id="@+id/filter_name"
         style="@style/ForumListTitle.Subtitle"
         android:layout_marginBottom="8dp"
-        android:layout_marginStart="8dp"
+        android:layout_marginStart="@dimen/material_screen_edge_margin"
         android:layout_marginTop="8dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
